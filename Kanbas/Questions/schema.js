@@ -2,19 +2,19 @@ import mongoose from "mongoose";
 const schema = new mongoose.Schema(
   {
     title: String,
-    points: Number,
-    question: String,
+    points: { type: Number, default: 0 },
+    description: String,
     type: {
       type: String,
       required: true,
       enum: ["MultipleChoice", "TrueFalse", "FillInTheBlank"], // Restrict to these values
     },
 
-    answer: String,
+    answer: { type: String, default: "" },
 
-    possibleAnswers: { type: [String] },
+    possibleAnswers: { type: [String], default: [] },
 
-    choices: { type: [String] },
+    choices: { type: [String], default: [] },
 
     quiz: { type: mongoose.Schema.Types.ObjectId, ref: "QuizModel" },
   },

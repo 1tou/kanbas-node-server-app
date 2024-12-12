@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
 
 const QuestionGradeSchema = new mongoose.Schema({
-  question: { type: String, required: true },
+  question: { type: mongoose.Schema.Types.ObjectId, ref: "QuestionModel", required: true },
+  answer: { type: String, required: true },
   grade: { type: Number, required: true }
 });
 
@@ -13,8 +14,8 @@ const schema = new mongoose.Schema(
     questionGrades: { type: [QuestionGradeSchema], default: [] },
     
     lastTakenTime: String,
-    attempts: String,
-    grade: String,
+    attempts: Number,
+    totalGrade: Number,
   },
   { collection: "quizgrades" }
 );

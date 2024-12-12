@@ -1,6 +1,8 @@
 import * as dao from "./dao.js";
 import * as courseDao from "../Courses/dao.js";
 import * as enrollmentsDao from "../Enrollments/dao.js";
+import * as quizGradesDao from "../QuizGrades/dao.js";
+import * as questionsDao from "../Questions/dao.js";
 //let currentUser = null;
 export default function UserRoutes(app) {
   const createUser = async (req, res) => {
@@ -148,9 +150,88 @@ export default function UserRoutes(app) {
     const status = await enrollmentsDao.unenrollUserFromCourse(uid, cid);
     res.send(status);
   };
+
+
+  const findQuizGradeForUser = async (req, res) => {
+    const currentUser = req.session["currentUser"];
+    if (!currentUser) {
+      res.sendStatus(401);
+      return;
+    }
+    let { uid } = req.params;
+    let { quizid } = req.params;
+    if (uid === "current") {
+      uid = currentUser._id;
+    }
+    const quizGrade = await quizGradesDao.findQuizGradeForUser(uid,quizid);
+    res.json(quizGrade);
+  };
+
+  const createQuizGrade = async (req, res) => {
+    const currentUser = req.session["currentUser"];
+    if (!currentUser) {
+      res.sendStatus(401);
+      return;
+    }
+    let { uid } = req.params;
+    if (uid === "current") {
+      uid = currentUser._id;
+    }
+    let { quizid } = req.params;
+
+    /*
+    const answers = {
+      ...req.body, // answers of questions are included in the body, answers : [ question: questionID, answer: string ]
+      //quiz: quizid,
+      //user: uid
+    };*/
+
+    let lastTakenTime = new Date(Date.now()).toLocaleString('en-CA', { hour12: false }).toString();
+    let attempts=1;
+    let totalGrade=0;
+    let questionGrades = req.body;
+    if(!questionGrades) questionGrades=[];
+    const previousQuizGrade = await quizGradesDao.findQuizGradeForUser(uid,quizid);
+    if( previousQuizGrade && previousQuizGrade.attempts )
+        attempts = previousQuizGrade.attempts + 1;
+
+    if(questionGrades){
+      for (let i = 0; i < questionGrades.length; i++) {
+        const questionId=questionGrades[i].question;
+        const answer=questionGrades[i].answer;
+        const questionBody = await questionsDao.findQuestionById(questionId);
+        let grade=0;
+        if(questionBody.type==="MultipleChoice"){
+          grade = ( answer===questionBody?.answer ) ? questionBody.points : 0 ;
+        }else if(questionBody.type==="TrueFalse"){
+          grade = ( answer===questionBody?.answer ) ? questionBody.points : 0 ;
+        }else if(questionBody.type==="FillInTheBlank"){
+          grade = ( questionBody?.possibleAnswers.includes(answer) ) ? questionBody.points : 0 ;
+        }
+        questionGrades[i] = { ...questionGrades[i], grade: grade };
+        totalGrade += grade;
+      }
+    }
+
+    const quizGrade = {
+      quiz: quizid,
+      user: uid,
+      questionGrades: questionGrades,
+      lastTakenTime: lastTakenTime,
+      attempts: attempts,
+      totalGrade: totalGrade,
+    }
+
+    await quizGradesDao.deleteQuizGrades(uid,quizid);
+
+    const newQuizGrade = await quizGradesDao.createQuizGrade(quizGrade);
+    res.send(newQuizGrade);
+  };
+
+
   app.post("/api/users/:uid/courses/:cid", enrollUserInCourse);
   app.delete("/api/users/:uid/courses/:cid", unenrollUserFromCourse);
-  
+
   app.post("/api/users/current/courses", createCourse);
   //app.get("/api/users/:userId/courses", findCoursesForEnrolledUser);
   app.get("/api/users/:uid/courses", findCoursesForUser);
@@ -163,4 +244,7 @@ export default function UserRoutes(app) {
   app.post("/api/users/signin", signin);
   app.post("/api/users/signout", signout);
   app.post("/api/users/profile", profile);
+
+  app.get("/api/users/:uid/quizzes/:quizid/grades", findQuizGradeForUser);
+  app.post("/api/users/:uid/quizzes/:quizid/grades", createQuizGrade);
 }

@@ -13,3 +13,8 @@ export function deleteQuestion(questionId) {
 export function updateQuestion(questionId, questionUpdates) {
   return model.updateOne({ _id: questionId }, questionUpdates);
 }
+
+
+export function findQuestionById(questionId) {
+  return model.findById(questionId);
+}
